@@ -1,0 +1,60 @@
+{
+  "reference": "plp1",
+  "sources": {"gencode": "v46", "atlas_pull": "2026-10 (curated snapshot)"},
+  "stages": {
+    "locus": {
+      "transcript_id": {"value": "ENST00000621218.5"},
+      "strand": {"value": 1},
+      "exon3_start": {"value": 103786465},
+      "exon3_end": {"value": 103786726},
+      "isoform_segment_start": {"value": 103786622},
+      "isoform_segment_end": {"value": 103786726},
+      "exon4_acceptor": {"value": 103787798},
+      "intron3_start": {"value": 103786727},
+      "intron3_end": {"value": 103787797},
+      "max_window": {"value": 1071},
+      "hgvs_probe": {"value": "c.454-6T>G", "variant": "chrX:103787792:T>G"}
+    },
+    "cohort": {
+      "n_variants": {"value": 202},
+      "class.clinvar_pathogenic_splicing_review": {"value": 6},
+      "class.candidate_vus": {"value": 6},
+      "class.candidate_other": {"value": 14},
+      "class.clinvar_benign_candidate": {"value": 49},
+      "class.population_background_candidate": {"value": 127},
+      "compartment.intron": {"value": 152},
+      "compartment.exon_isoform_specific": {"value": 12},
+      "compartment.exon_shared": {"value": 38},
+      "n_indels": {"value": 13}
+    },
+    "composite": {
+      "n_scored_cohort": {"value": 202},
+      "n_scored_saturation": {"value": 3204},
+      "max_abs_diff_cohort": {"value": 0, "tol": 1e-6},
+      "max_abs_diff_saturation": {"value": 0, "tol": 1e-6}
+    },
+    "threshold": {
+      "n_case": {"value": 6, "headline": true},
+      "n_control": {"value": 176, "headline": true},
+      "auroc": {"value": 0.999053, "tol": 1e-4, "headline": true},
+      "auprc": {"value": 0.976190, "tol": 1e-3, "headline": true},
+      "youden_tau": {"value": 2.653810, "tol": 1e-3, "headline": true},
+      "sensitivity": {"value": 1.0, "tol": 1e-9, "headline": true},
+      "specificity": {"value": 0.994318, "tol": 1e-6, "headline": true},
+      "fp": {"value": 1}
+    },
+    "prioritize": {
+      "n_candidates": {"value": 3175},
+      "n_hypothetical": {"value": 3068},
+      "hypothetical_ge_youden": {"value": 11, "headline": true},
+      "hypothetical_ge_1": {"value": 45, "headline": true},
+      "observed_ge_1": {"value": 1},
+      "top1_variant": {"value": "chrX:103787792:T>G", "headline": true},
+      "top1_hgvs_c": {"value": "c.454-6T>G", "headline": true}
+    },
+    "figures": {
+      "files": {"value": "A_categories.png|B_locus.png|C_roc.png|D_prioritized.png"},
+      "d_points": {"value": 11}
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "study_id": "plp1",
+  "skill": "splicing-analysis",
+  "skill_version": "0.1.0",
+  "origin": {
+    "kind": "snapshot",
+    "note": "snapshot (PLP1 curated reference): raw/snapshot_cohort.csv and raw/snapshot_saturation.parquet are bundled reference snapshots; raw/gtf.json and raw/gtf_junctions.json were captured live on 2026-11-12 (GENCODE v46 is offline and deterministic)."
+  },
+  "steps": [
+    {
+      "step": "2-gtf",
+      "skill": "alphagenome-variant-impact-score",
+      "command": "uv run --no-project --python 3.13 --with \"alphagenome>=0.9.0,absl-py,anndata,numpy>=2.0,pandas<3.0,polars,pyarrow,pysam,python-dotenv,tabulate\" .claude/skills/alphagenome-variant-impact-score/scripts/alphagenome_atlas_avi.py gtf --gene PLP1 --all_transcripts --exons --cds --utr --format json | sed -n '/^\\[$/,$p' > skills/splicing-analysis/assets/reference/plp1/raw/gtf.json",
+      "outputs": [
+        "raw/gtf.json"
+      ],
+      "source_versions": {
+        "gencode": "v46",
+        "python": "3.13"
+      },
+      "recorded_at": "2026-11-12T19:57:25Z",
+      "decision_keys": []
+    },
+    {
+      "step": "2-gtf-junctions",
+      "skill": "alphagenome-variant-impact-score",
+      "command": "uv run --no-project --python 3.13 --with \"alphagenome>=0.9.0,absl-py,anndata,numpy>=2.0,pandas<3.0,polars,pyarrow,pysam,python-dotenv,tabulate\" .claude/skills/alphagenome-variant-impact-score/scripts/alphagenome_atlas_avi.py gtf --gene PLP1 --junctions --format json | sed -n '/^\\[$/,$p' > skills/splicing-analysis/assets/reference/plp1/raw/gtf_junctions.json",
+      "outputs": [
+        "raw/gtf_junctions.json"
+      ],
+      "source_versions": {
+        "gencode": "v46",
+        "python": "3.13"
+      },
+      "recorded_at": "2026-11-12T19:57:25Z",
+      "decision_keys": []
+    },
+    {
+      "step": "snapshot-cohort",
+      "skill": "splicing-analysis/snapshot",
+      "command": "snapshot bundle: raw/snapshot_cohort.csv",
+      "outputs": [
+        "raw/snapshot_cohort.csv"
+      ],
+      "source_versions": {
+        "atlas_pull": "2026-10 (curated snapshot)",
+        "rows": "202"
+      },
+      "recorded_at": "2026-11-12T19:57:25Z",
+      "decision_keys": []
+    },
+    {
+      "step": "snapshot-saturation",
+      "skill": "splicing-analysis/snapshot",
+      "command": "snapshot bundle: raw/snapshot_saturation.parquet",
+      "outputs": [
+        "raw/snapshot_saturation.parquet"
+      ],
+      "source_versions": {
+        "atlas_pull": "2026-10 (curated snapshot)",
+        "rows": "3204",
+        "positions": "103786727-103787794"
+      },
+      "recorded_at": "2026-11-12T19:57:26Z",
+      "decision_keys": []
+    }
+  ]
+}
