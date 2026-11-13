@@ -1,0 +1,31 @@
+# Study request (splicing analysis). `study.py init` fills the gene placeholders.
+# Ask the researcher for the gene and the introns of interest (Workflow step 1), then run
+# `study.py validate`.
+study_id: {{STUDY_ID}}            # lowercase gene symbol
+assembly: GRCh38
+gene_symbol: {{GENE_SYMBOL}}
+transcript_id: ""                  # empty = MANE Select from raw/gtf.json
+introns_of_interest: []            # intron numbers, e.g. [3]
+isoforms:
+  reference: ""                    # transcript ID of the reference isoform; empty = no isoform segment
+  alternative: ""                  # transcript ID of the alternative isoform
+saturation_region: ""              # CHR:START-END: scan this one interval instead of the default windows
+saturation:
+  flank_bp: 100                    # default scan: +/- flank_bp around each donor and acceptor of the
+                                   # introns of interest (merged where they overlap), not whole introns
+distance_bins: [5, 25, 100]        # bp from the nearest splice site
+manual_elements: []                # [{label, start, end, citation}] with a literature citation each
+cohort:
+  sources: [clinvar, gnomad]
+  class_rules: default
+  include_indels: true
+  gnomad_filter: PASS              # only if the gnomAD output carries filters
+composite:
+  junction_weight: 0.2
+threshold:
+  fixed: []                        # [{label, value}] thresholds to show besides the ROC/Youden one
+view:
+  start: 0                         # dashboard view window; set after the locus step
+  end: 0
+report:
+  top_n: 20
