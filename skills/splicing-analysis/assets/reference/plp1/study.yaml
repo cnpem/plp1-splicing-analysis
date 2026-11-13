@@ -1,0 +1,38 @@
+# PLP1 reference study (splicing analysis). Bundled curated snapshot: intron 3,
+# PLP1 vs DM20 isoforms, threshold 1.0, dashboard view.
+study_id: plp1
+assembly: GRCh38
+gene_symbol: PLP1
+transcript_id: ""            # empty = MANE Select from raw/gtf.json
+introns_of_interest: [3]
+isoforms:
+  reference: ENST00000621218.5     # PLP1 isoform (exon 3B), MANE Select in GENCODE v46
+  alternative: ENST00000619236.1   # DM20 isoform (exon 3A only)
+saturation_region: chrX:103786727-103787797   # covers the whole of intron 3; explicit so
+                                               # max_window stays 1071 (the default would be +/- 100 bp per site)
+distance_bins: [5, 25, 100]
+manual_elements:
+  - label: "LDIS-5'"
+    start: 103786885
+    end: 103786890
+    citation: "Taube et al., 2014; Kevelam et al., 2015. Bounds are the cited intron 3 variants c.453+159G>A (chrX:103786885) and c.453+164G>A (chrX:103786890)."
+  - label: "LDIS-3'"
+    start: 103787484
+    end: 103787486
+    citation: "Taube et al., 2014; Kevelam et al., 2015; Steenweg et al., 2012. Bounds are the cited intron 3 variants c.454-314T>G (chrX:103787484) and c.454-312C>G (chrX:103787486)."
+cohort:
+  sources: [clinvar, gnomad]
+  class_rules: default
+  include_indels: true
+  gnomad_filter: PASS
+composite:
+  junction_weight: 0.2
+threshold:
+  fixed:
+    - label: "Standard damaging"
+      value: 1.0
+view:
+  start: 103786400
+  end: 103788000
+report:
+  top_n: 20

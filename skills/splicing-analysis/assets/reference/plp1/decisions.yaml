@@ -1,0 +1,32 @@
+# Researcher decisions for the PLP1 reference study.
+# Pre-populated on 2026-11-12 to match the bundled PLP1 intron 3 reference configuration.
+splicing.introns:
+  value: [3]
+  workflow_step: 3
+  asked_at: "2026-11-12T00:00:00+00:00"
+  answered_at: "2026-11-12T00:00:00+00:00"
+  note: "Focuses on intron 3 (saturation chrX:103786727-103787794, cohort annotated 'Intron 3')."
+splicing.isoforms:
+  value: {reference: ENST00000621218.5, alternative: ENST00000619236.1}
+  workflow_step: 3
+  asked_at: "2026-11-12T00:00:00+00:00"
+  answered_at: "2026-11-12T00:00:00+00:00"
+  note: "PLP1 (exon 3B, MANE Select) versus DM20 (exon 3A only, donor 103786621); versioned IDs from raw/gtf.json (GENCODE v46)."
+"splicing.manual_element:LDIS-5'":
+  value: accept
+  workflow_step: 4
+  asked_at: "2026-11-12T00:00:00+00:00"
+  answered_at: "2026-11-12T00:00:00+00:00"
+  note: "LDIS-5' region (chrX:103786885-103786890); bounding variants from Taube et al., 2014 / Kevelam et al., 2015."
+"splicing.manual_element:LDIS-3'":
+  value: accept
+  workflow_step: 4
+  asked_at: "2026-11-12T00:00:00+00:00"
+  answered_at: "2026-11-12T00:00:00+00:00"
+  note: "LDIS-3' region (chrX:103787484-103787486); bounding variants from Taube et al., 2014 / Kevelam et al., 2015 / Steenweg et al., 2012."
+cohort.class_rules:
+  value: default
+  workflow_step: 7
+  asked_at: "2026-11-12T00:00:00+00:00"
+  answered_at: "2026-11-12T00:00:00+00:00"
+  note: "Uses the skill's default ClinVar and gnomAD cohort classification rules."
