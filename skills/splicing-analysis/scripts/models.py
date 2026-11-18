@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pyarrow"]
+# dependencies = ["pyarrow==26.0.1"]
 # ///
 """Typed views of the dependency outputs kept in a study's raw/ folder.
 
@@ -849,7 +849,8 @@ class OlsTerm(_Record):
                          "ontology_name": _str, "ontology_prefix": _str,
                          "is_defining_ontology": _bool, "is_obsolete": _bool,
                          "has_children": _bool, "is_root": _bool, "short_form": _str,
-                         "synonyms": _str_tuple, "annotation": _mapping, "in_subset": _str_tuple,
+                         "synonyms": _str_tuple, "annotation": _mapping,
+                         "in_subset": lambda v, source="": () if v is None else _str_tuple(v),  # OLS sends null for none
                          **{rel: _many(OlsRelatedTerm) for rel in _OLS_RELATIONS},
                          "graph": _omapping}
     OPTIONAL: ClassVar = frozenset({*_OLS_RELATIONS, "graph"})
@@ -2091,6 +2092,8 @@ def validate(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    for stream in (sys.stdout, sys.stderr):  # UTF-8 on any console (cp1252 on Windows)
+        stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("validate", help="Validate every raw file of a directory")

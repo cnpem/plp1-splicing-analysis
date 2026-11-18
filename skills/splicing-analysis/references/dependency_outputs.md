@@ -11,6 +11,20 @@ Placeholders: `G` gene symbol, `CHR`/`START`/`END` the locus region, `W` a satur
 interest that `splicing.py regions` lists), `M` = `study.py window --print-max-window`,
 `C` CURIE. Commands run from the directory that holds `.claude/skills/`.
 
+## Contents
+
+- [Dependency versions tested](#dependency-versions-tested)
+- [gtf.json and gtf_junctions.json — structure and junctions (Workflow step 2)](#gtfjson-and-gtf_junctionsjson--structure-and-junctions-workflow-step-2)
+- [clinvar_search.json, clinvar_summary_NNN.json, clinvar_evidence_{id}.json — ClinVar cases (step 5)](#clinvar_searchjson-clinvar_summary_nnnjson-clinvar_evidence_idjson--clinvar-cases-step-5)
+- [dbsnp_rsid_{N}.json, vep_clinvar_{id}.json, sequence_{chr}_{start}_{end}.txt — ClinVar coordinates (step 5)](#dbsnp_rsid_njson-vep_clinvar_idjson-sequence_chr_start_endtxt--clinvar-coordinates-step-5)
+- [gnomad_region_{i}.json (or gnomad_region.json) — population controls (step 6)](#gnomad_region_ijson-or-gnomad_regionjson--population-controls-step-6)
+- [avi_region.parquet and avi_query.json — AVI (step 8, step 12)](#avi_regionparquet-and-avi_queryjson--avi-step-8-step-12)
+- [scores_saturation.tsv, scores_cohort.tsv — Atlas splice scores (step 8)](#scores_saturationtsv-scores_cohorttsv--atlas-splice-scores-step-8)
+- [model_scores_indels.tsv — indels with the model API (step 9)](#model_scores_indelstsv--indels-with-the-model-api-step-9)
+- [interpret_{CHR}_{POS}_{REF}_{ALT}.txt — splicing interpretation (step 12)](#interpret_chr_pos_ref_alttxt--splicing-interpretation-step-12)
+- [atlas_links.md — Atlas deep links (step 12)](#atlas_linksmd--atlas-deep-links-step-12)
+- [snapshot_cohort.csv, snapshot_saturation.parquet — reference snapshot only](#snapshot_cohortcsv-snapshot_saturationparquet--reference-snapshot-only)
+
 ## Dependency versions tested
 
 Versions are the `computedHash` in `skills-lock.json` (the skills have no release numbers) plus the
@@ -44,9 +58,10 @@ uv run --no-project --python 3.13 --with "$AVI_DEPS" .claude/skills/alphagenome-
 still works (`alphagenome_atlas_avi.py`, `atlas_query.py`, `alphagenome_atlas_links.py`); every
 model-API script (`interpret_splicing.py`, `score_variants.py`) needs `uv run --with "alphagenome<2" …`.
 
-**Keys.** The DeepMind scripts load `~/.env` themselves. The K-Dense scripts read only the
-environment, so they run as `uv run --env-file ~/.env …` (uv loads the file into the
-process environment; the shell never sources it, and the key never appears on a command line).
+**Keys.** Every dependency script runs as `uv run --env-file $ENV …`, with `ENV` the project's `.env`
+(uv loads the file into the process environment; the shell never sources it, and the key never appears on a
+command line). The K-Dense scripts read only the environment; the DeepMind scripts also look in `~/.env`, but a
+variable already in the environment wins, so the project's key is the one used.
 
 ## `gtf.json` and `gtf_junctions.json` — structure and junctions (Workflow step 2)
 
@@ -231,9 +246,9 @@ tracks).
 ## `scores_saturation.tsv`, `scores_cohort.tsv` — Atlas splice scores (step 8)
 
 ```bash
-uv run --env-file ~/.env .claude/skills/alphagenome/scripts/atlas_query.py scores \
+uv run --env-file $ENV .claude/skills/alphagenome/scripts/atlas_query.py scores \
   --interval W --max-window M --scorers SPLICE_SITES SPLICE_SITE_USAGE SPLICE_JUNCTIONS --gene G -o raw/scores_saturation.tsv
-uv run --env-file ~/.env .claude/skills/alphagenome/scripts/atlas_query.py scores \
+uv run --env-file $ENV .claude/skills/alphagenome/scripts/atlas_query.py scores \
   --input COHORT_SNVS.tsv --scorers SPLICE_SITES SPLICE_SITE_USAGE SPLICE_JUNCTIONS --gene G -o raw/scores_cohort.tsv
 ```
 
@@ -249,7 +264,7 @@ the file has an `error` column, and on every row with an empty `error` cell `sco
 ## `model_scores_indels.tsv` — indels with the model API (step 9)
 
 ```bash
-uv run --env-file ~/.env --with "alphagenome<2" .claude/skills/alphagenome/scripts/score_variants.py \
+uv run --env-file $ENV --with "alphagenome<2" .claude/skills/alphagenome/scripts/score_variants.py \
   --input INDELS.tsv --scorers SPLICE_SITES SPLICE_SITE_USAGE SPLICE_JUNCTIONS --gene G -o raw/model_scores_indels.tsv
 ```
 

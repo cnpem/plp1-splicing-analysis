@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pyyaml"]
+# dependencies = ["pyyaml==6.0.3"]
 # ///
 """Provenance manifest of a study directory (manifest.json).
 
@@ -48,6 +48,10 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 MANIFEST_NAME = "manifest.json"
 LOCK_NAME = ".manifest.lock"
 ORIGIN_KINDS = ("live", "snapshot")
+# Version of the study's file formats (manifest.json, study.yaml, decisions.yaml, pending_decisions.json), written
+# when the study is created. A study with a higher number was made by a newer version of the skill: it is refused
+# instead of being read wrongly. Studies made before the field existed are format 1.
+FORMAT_VERSION = 1
 
 
 class ManifestError(Exception):
@@ -153,10 +157,20 @@ def _atomic_write(path: Path, text: str) -> None:
         raise
 
 
-def _load_or_create(study_dir: Path, origin_kind: str | None, origin_note: str | None) -> dict:
+def check_format(data: dict, path: Path) -> None:
+    """Refuses a file written in a newer format than this skill reads (absent field = format 1)."""
+    found = data.get("format_version", 1) if isinstance(data, dict) else 1
+    if not isinstance(found, int) or found > FORMAT_VERSION:
+        raise ManifestError(f"{path}: format_version {found!r} is newer than this skill reads ({FORMAT_VERSION}); the "
+                            "study was made by a newer version of the skill. Update the skill before using this study.")
+
+
+def _load_or_create(study_dir: Path, origin_kind: str | None, origin_note: str | None,
+                    study_id: str | None = None) -> dict:
     path = study_dir / MANIFEST_NAME
     if path.is_file():
         manifest = json.loads(path.read_text(encoding="utf-8"))
+        check_format(manifest, path)
         origin = manifest.get("origin", {})
         if origin_kind is not None and origin_kind != origin.get("kind"):
             raise ManifestError(f"{path}: origin is already {origin.get('kind')!r}; it is set only on creation")
@@ -165,9 +179,10 @@ def _load_or_create(study_dir: Path, origin_kind: str | None, origin_note: str |
         return manifest
     name, version = _skill_identity()
     return {
-        "study_id": _study_id(study_dir),
+        "study_id": study_id or _study_id(study_dir),
         "skill": name,
         "skill_version": version,
+        "format_version": FORMAT_VERSION,
         "origin": {"kind": origin_kind or "live", "note": origin_note or ""},
         "steps": [],
     }
@@ -179,6 +194,7 @@ def add_step(
     *,
     origin_kind: str | None = None,
     origin_note: str | None = None,
+    study_id: str | None = None,
 ) -> None:
     """Appends a step to <study_dir>/manifest.json, creating the manifest if needed.
 
@@ -190,6 +206,8 @@ def add_step(
         step: The step to record; `outputs` are validated as relative paths that exist.
         origin_kind: "live" or "snapshot"; only honoured when the manifest is created.
         origin_note: Origin note; only honoured when the manifest is created.
+        study_id: Identifier for a manifest created outside a study (the exploration folder has no
+            study.yaml); by default it is read from study.yaml.
 
     Raises:
         ManifestError: On a missing study directory, bad output path or origin conflict.
@@ -199,7 +217,7 @@ def add_step(
         raise ManifestError(f"study directory {study_dir} not found")
     outputs = _check_outputs(study_dir, step.outputs)
     with _locked(study_dir):
-        manifest = _load_or_create(study_dir, origin_kind, origin_note)
+        manifest = _load_or_create(study_dir, origin_kind, origin_note, study_id)
         manifest["steps"].append({**dataclasses.asdict(step), "outputs": outputs})
         _atomic_write(study_dir / MANIFEST_NAME, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
 
@@ -229,6 +247,7 @@ def show(args: argparse.Namespace) -> None:
     if not path.is_file():
         raise ManifestError(f"{path} not found; no step has been recorded yet (manifest.py add).")
     manifest: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    check_format(manifest, path)
     origin = manifest.get("origin", {})
     print(f"study {manifest.get('study_id')} | {manifest.get('skill')} {manifest.get('skill_version')}"
           f" | origin: {origin.get('kind')} ({_clip(origin.get('note', ''), 70)})")
@@ -244,6 +263,8 @@ def show(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    for stream in (sys.stdout, sys.stderr):  # UTF-8 on any console (cp1252 on Windows)
+        stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command_name", required=True)
 
