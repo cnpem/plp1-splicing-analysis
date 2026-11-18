@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["marimo>=0.25", "altair>=5.4", "anywidget", "pandas", "polars", "pyarrow", "pyyaml", "matplotlib", "numpy", "vl-convert-python"]
+# dependencies = ["marimo==0.25.2", "altair==6.3.0", "anywidget==0.11.0", "pandas==3.1.1", "polars==1.31.0", "pyarrow==26.0.1", "pyyaml==6.0.3", "matplotlib==3.11.2", "numpy==2.5.4", "vl-convert-python==1.9.0.post1"]
 # ///
 """Splicing dashboard (Workflow step 14), a marimo app over one study directory.
 

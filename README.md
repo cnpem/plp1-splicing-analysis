@@ -26,7 +26,7 @@ External dependency skills (installed separately by the researcher as needed):
 - From `google-deepmind/science-skills`: `uv`, `credentials`, `alphagenome-variant-impact-score`, `alphagenome-single-variant-analysis`, `alphagenome-atlas-website-links`, `clinvar-database`, `gnomad-database`, `dbsnp-database`, `ensembl-database`
 - From `K-Dense-AI/scientific-agent-skills`: `alphagenome`
 
-Set `ALPHAGENOME_API_KEY` (required) and `NCBI_API_KEY` (optional) in `~/.env` (see the `credentials` skill) and create required `.licenses/` acknowledgement files only after reviewing each dependency's terms of use.
+Set `ALPHAGENOME_API_KEY` (required) and `NCBI_API_KEY` (optional) in the project's `.env` (the only place the keys are read from; keep `.env` out of git) and create the required `.licenses/` acknowledgement files only after reviewing each dependency's terms of use. The `alphagenome-skills-setup` skill (in `cnpem/uchl1-expression-analysis`) guides both, one approved item at a time.
 
 ## Quick Start
 

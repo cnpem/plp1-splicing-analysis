@@ -32,8 +32,10 @@ SKILL=.claude/skills/splicing-analysis     # this skill (in the development repo
 DEPS=.claude/skills                        # where `splicing.py check` found the dependency skills
 D=studies/mygene-splicing                  # study directory chosen by the researcher, outside the skill
 G=MYGENE                                   # HGNC symbol, as in study.yaml gene_symbol
-AVI_DEPS="alphagenome>=0.9.0,absl-py,anndata,numpy>=2.0,pandas<3.0,polars,pyarrow,pysam,python-dotenv,tabulate"
-LINKS_DEPS="alphagenome>=0.9.0,numpy>=2.0,pandas<3.0,pyarrow,python-dotenv"
+AVI_DEPS="alphagenome==2.0.0,absl-py==2.5.1,anndata==0.13.4,numpy==2.5.4,pandas==2.3.3,polars==1.31.0,pyarrow==26.0.1,python-dotenv==1.2.4,tabulate==0.10.0"
+                                           # on macOS and Linux append ,pysam==0.24.1 (it does not build on Windows)
+LINKS_DEPS="alphagenome==2.0.0,numpy==2.5.4,pandas==2.3.3,pyarrow==26.0.1,python-dotenv==1.2.4"
+ENV="$PWD/.env"                            # the project's .env: the only place the keys are read from (in .gitignore)
 PAUSE=0.35                                 # seconds between NCBI calls: 3 requests/s; 0.1 with NCBI_API_KEY
 ```
 
@@ -59,13 +61,14 @@ the files it wrote (`--output` repeated). The first `add` creates the manifest a
 that takes `--origin`/`--origin-note`.
 
 **Researcher decisions.** A stage that meets an open choice writes it to
-`processed/pending_decisions.json` and exits 1 with `N decision(s) needed: run study.py pending.`
+`processed/pending_decisions.json` and exits 3 with `N decision(s) needed: run study.py pending.`
+(exit 1 is an error, 0 done, 130 interrupted).
 
 ```bash
 uv run $SKILL/scripts/study.py pending --study-dir $D
 # show each question, its options and the recommendation to the researcher; then, with THEIR answer:
 uv run $SKILL/scripts/study.py decide --study-dir $D --key splicing.introns --value '[3]' --step 3 \
-  --note "Question as shown; options; the researcher's reason"
+  --said "só o íntron 3" --note "Question as shown; options; the researcher's reason"
 ```
 
 `--value` is parsed as YAML (`'[3]'` is a list, `'{reference: ENST…, alternative: ENST…}'` a
@@ -74,8 +77,9 @@ needs stops it with `Missing decision '{key}'. Run Workflow step {N} …`. `deci
 question's `options` and `recommended` from `pending_decisions.json` into the `decisions.yaml`
 entry, so the record shows what was offered next to what was chosen. For a question you ask
 yourself (no pending entry), pass what you offered with `--option` (once per option) and
-`--recommended`. If the researcher delegated the choice, record the recommendation and write that
-in the note.
+`--recommended`. `--said` is required: the researcher's own words for the answer, copied from the
+conversation (several messages joined with ` / `); `decide` refuses without it. If the researcher explicitly
+delegated that question, record the recommendation with `--delegated` and quote the delegation in `--said`.
 
 A key must look like `<area>.<topic>[:<subject>]` (as `study.py pending` prints it): `decide`
 refuses anything else with exit 1 and records nothing, and warns about a key that is neither pending
@@ -85,9 +89,10 @@ $KEYS` gets one newline-joined word in zsh). To take the keys from a file, read 
 
 ```bash
 uv run $SKILL/scripts/study.py decide --study-dir $D --key 'splicing.manual_element:ESE1' \
-  --key 'splicing.manual_element:ISS2' --value accept --step 4 --note "Both elements accepted by the researcher"
+  --key 'splicing.manual_element:ISS2' --value accept --step 4 --said "pode aceitar os dois" \
+  --note "Both elements accepted by the researcher"
 while IFS= read -r K; do                                   # keys.txt: one key per line (bash and zsh)
-  uv run $SKILL/scripts/study.py decide --study-dir $D --key "$K" --value accept --step 4 --note "…"
+  uv run $SKILL/scripts/study.py decide --study-dir $D --key "$K" --value accept --step 4 --said "…" --note "…"
 done < keys.txt
 ```
 
@@ -103,12 +108,13 @@ uv run $SKILL/scripts/splicing.py check
 ```
 
 - `All prerequisites satisfied` (exit 0): go on. A warning that `NCBI_API_KEY` is not set means
-  ClinVar and dbSNP run at 3 requests/s; offer the `credentials` skill, do not insist.
-- Exit 1: the list names each missing item. For a **skill**, show the researcher the skill, its
-  origin and the printed install command, and ask about one skill at a time. Run the install only
-  for the skill they approved (or let them run it), then run `check` again. For a **licence
-  notice**, go through that dependency's `SKILL.md` Prerequisites with the researcher and create
-  the `.licenses/` file only after their explicit OK. For a **key**, the `credentials` skill.
+  ClinVar and dbSNP run at 3 requests/s; offer the `alphagenome-skills-setup` skill, do not insist.
+- Exit 1: the list names each missing item. Hand them to the `alphagenome-skills-setup` skill, which asks
+  the researcher item by item (skills, terms of use, the key in the project's `.env`). Without it: for a
+  **skill**, show the researcher the skill, its origin and the printed install command, and ask about one skill
+  at a time; for a **licence notice**, go through that dependency's `SKILL.md` Prerequisites with the
+  researcher and create the `.licenses/` file only after their explicit OK. Never ask for a **key** in the
+  chat: the researcher pastes it in the project's `.env`.
 
 ```bash
 uv run $SKILL/scripts/study.py init --study-dir $D --gene $G
@@ -400,7 +406,7 @@ the script refuses intervals above 1000 bp by default):
 for SAT in $(uv run $SKILL/scripts/splicing.py regions --study-dir $D --only saturation); do   # one window per line
   w=$(echo $SAT | tr ':-' '__')
   for S in SPLICE_SITES SPLICE_SITE_USAGE; do
-    uv run --env-file ~/.env $DEPS/alphagenome/scripts/atlas_query.py scores --interval $SAT --max-window $M \
+    uv run --env-file $ENV $DEPS/alphagenome/scripts/atlas_query.py scores --interval $SAT --max-window $M \
       --scorers $S --gene $G -o $D/raw/parts/scores_saturation_${S}_$w.tsv
   done
 done
@@ -415,7 +421,7 @@ of 400:
 uv run $SKILL/scripts/splicing.py inputs --study-dir $D --list saturation-snvs
 for f in $D/processed/inputs/saturation_snvs_*.tsv; do
   n=${f##*_}
-  uv run --env-file ~/.env $DEPS/alphagenome/scripts/atlas_query.py scores --input $f \
+  uv run --env-file $ENV $DEPS/alphagenome/scripts/atlas_query.py scores --input $f \
     --scorers SPLICE_JUNCTIONS --gene $G -o $D/raw/parts/scores_saturation_SPLICE_JUNCTIONS_$n
 done
 uv run $SKILL/scripts/splicing.py merge-scores --delete-inputs --output $D/raw/scores_saturation.tsv \
@@ -434,7 +440,7 @@ scorers per variant:
 uv run $SKILL/scripts/splicing.py inputs --study-dir $D --list cohort-snvs
 for f in $D/processed/inputs/cohort_snvs_*.tsv; do
   n=${f##*_}
-  uv run --env-file ~/.env $DEPS/alphagenome/scripts/atlas_query.py scores --input $f \
+  uv run --env-file $ENV $DEPS/alphagenome/scripts/atlas_query.py scores --input $f \
     --scorers SPLICE_SITES SPLICE_SITE_USAGE SPLICE_JUNCTIONS --gene $G -o $D/raw/parts/scores_cohort_$n
 done
 uv run $SKILL/scripts/splicing.py merge-scores --delete-inputs --output $D/raw/scores_cohort.tsv $D/raw/parts/scores_cohort_*.tsv
@@ -459,7 +465,7 @@ composite of the two must come from the same pull to be comparable.
 
 ```bash
 uv run $SKILL/scripts/manifest.py add --study-dir $D --step 8-scores-saturation --skill alphagenome \
-  --command "SITES and USAGE, per window W of splicing.py regions --only saturation: uv run --env-file ~/.env $DEPS/alphagenome/scripts/atlas_query.py scores --interval W --max-window $M --scorers <S> --gene $G -o $D/raw/parts/scores_saturation_<S>_<W>.tsv; JUNCTIONS: the same with --input $D/processed/inputs/saturation_snvs_NNN.tsv --scorers SPLICE_JUNCTIONS; joined with uv run $SKILL/scripts/splicing.py merge-scores --delete-inputs --output $D/raw/scores_saturation.tsv <parts>" \
+  --command "SITES and USAGE, per window W of splicing.py regions --only saturation: uv run --env-file $ENV $DEPS/alphagenome/scripts/atlas_query.py scores --interval W --max-window $M --scorers <S> --gene $G -o $D/raw/parts/scores_saturation_<S>_<W>.tsv; JUNCTIONS: the same with --input $D/processed/inputs/saturation_snvs_NNN.tsv --scorers SPLICE_JUNCTIONS; joined with uv run $SKILL/scripts/splicing.py merge-scores --delete-inputs --output $D/raw/scores_saturation.tsv <parts>" \
   --output raw/scores_saturation.tsv --source-version atlas_pull=$(date +%F)
 ```
 
@@ -472,12 +478,12 @@ API (slower: about 2-3 s per variant):
 uv run $SKILL/scripts/splicing.py inputs --study-dir $D --list cohort-indels
 for f in $D/processed/inputs/cohort_indels_*.tsv; do
   n=${f##*_}
-  uv run --env-file ~/.env --with "alphagenome<2" $DEPS/alphagenome/scripts/score_variants.py --input $f \
+  uv run --env-file $ENV --with "alphagenome<2" $DEPS/alphagenome/scripts/score_variants.py --input $f \
     --scorers SPLICE_SITES SPLICE_SITE_USAGE SPLICE_JUNCTIONS --gene $G -o $D/raw/parts/model_scores_indels_$n
 done
 uv run $SKILL/scripts/splicing.py merge-scores --delete-inputs --output $D/raw/model_scores_indels.tsv $D/raw/parts/model_scores_indels_*.tsv
 uv run $SKILL/scripts/manifest.py add --study-dir $D --step 9-indels --skill alphagenome \
-  --command "uv run --env-file ~/.env --with 'alphagenome<2' $DEPS/alphagenome/scripts/score_variants.py --input $D/processed/inputs/cohort_indels_NNN.tsv --scorers SPLICE_SITES SPLICE_SITE_USAGE SPLICE_JUNCTIONS --gene $G -o $D/raw/parts/model_scores_indels_NNN.tsv; joined with splicing.py merge-scores --delete-inputs" \
+  --command "uv run --env-file $ENV --with 'alphagenome<2' $DEPS/alphagenome/scripts/score_variants.py --input $D/processed/inputs/cohort_indels_NNN.tsv --scorers SPLICE_SITES SPLICE_SITE_USAGE SPLICE_JUNCTIONS --gene $G -o $D/raw/parts/model_scores_indels_NNN.tsv; joined with splicing.py merge-scores --delete-inputs" \
   --output raw/model_scores_indels.tsv --source-version alphagenome='<2' --source-version sequence_length=1MB
 ```
 

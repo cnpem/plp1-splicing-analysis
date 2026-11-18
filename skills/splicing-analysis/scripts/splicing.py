@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pyyaml", "polars", "pyarrow", "numpy", "altair>=5.4", "pandas", "vl-convert-python"]
+# dependencies = ["pyyaml==6.0.3", "polars==1.31.0", "pyarrow==26.0.1", "numpy==2.5.4", "altair==6.3.0", "pandas==3.1.1", "vl-convert-python==1.9.0.post1"]
 # ///
 """CLI for the splicing-analysis skill.
 
@@ -697,22 +697,64 @@ def _find_skill(name: str) -> Path | None:
     return None
 
 
-def _key_present(name: str) -> bool:
-    """True if the variable is set; the value is never stored or printed."""
-    if os.environ.get(name):
-        return True
-    env_file = Path.home() / ".env"
+def _workspace_of(skill_folder: Path) -> Path | None:
+    """The workspace that holds `<ws>/.claude/skills/<name>` or `<ws>/.agents/skills/<name>`."""
+    skills = skill_folder.parent
+    if skills.name == "skills" and skills.parent.name in (".claude", ".agents"):
+        return skills.parent.parent
+    if skills.name == "skills":  # a repository layout: <repo>/skills/<name>
+        return skills.parent
+    return None
+
+
+def env_files() -> list[Path]:
+    """The project's `.env`, the only place the keys are read from (as in expression-analysis): the working
+    directory's, then the one of the workspace that holds this skill. `~/.env` and environment variables are not
+    used, so a study always runs with the key of its own project."""
+    roots = [Path.cwd()]
+    ws = _workspace_of(SKILL_DIR)
+    if ws is not None:
+        roots.append(ws)
+    out: list[Path] = []
+    for path in (r / ".env" for r in roots):
+        path = path.resolve()
+        if path.is_file() and path not in out:
+            out.append(path)
+    return out
+
+
+def _key_in_file(path: Path, name: str) -> bool:
     try:
-        for line in env_file.read_text().splitlines():
-            line = line.strip()
-            if line.startswith("export "):
-                line = line[len("export "):]
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip().removeprefix("export ").strip()
             key, sep, value = line.partition("=")
             if sep and key.strip() == name and value.strip().strip("\"'"):
                 return True
     except OSError:
         pass
     return False
+
+
+def _key_present(name: str) -> bool:
+    """True when the project's `.env` sets the variable; the value is never stored or printed."""
+    return any(_key_in_file(f, name) for f in env_files())
+
+
+def _env_unprotected() -> list[Path]:
+    """Project `.env` files inside a git repository that git does not ignore (a key could be committed)."""
+    import subprocess
+
+    out = []
+    for f in env_files():
+        if not (f.parent / ".git").exists():
+            continue
+        try:
+            ignored = subprocess.run(["git", "check-ignore", "-q", f.name], cwd=f.parent, capture_output=True).returncode == 0
+        except OSError:
+            continue
+        if not ignored:
+            out.append(f)
+    return out
 
 
 def check(args: argparse.Namespace) -> None:
@@ -749,13 +791,17 @@ def check(args: argparse.Namespace) -> None:
     for key in REQUIRED_KEYS:
         if not _key_present(key):
             errors.append(
-                f"Missing API key {key}. Set it with the 'credentials' skill "
-                "(stored in ~/.env) or export it in the environment."
+                f"Missing API key {key} in the project's .env (the only place it is read from; not ~/.env, not "
+                "environment variables). The 'alphagenome-skills-setup' skill sets it with the researcher, who pastes "
+                "it in the file; never ask for it in the chat."
             )
     for key in OPTIONAL_KEYS:
         if not _key_present(key):
             warnings.append(f"Warning: {key} is not set; requests will run at the lower rate limit.")
 
+    for f in _env_unprotected():
+        warnings.append(f"Warning: {f} holds keys but git does not ignore it; add '.env' to .gitignore before any "
+                        "commit (an AlphaGenome key is personal and must not be shared).")
     for w in warnings:
         print(w, file=sys.stderr)
     if errors:
