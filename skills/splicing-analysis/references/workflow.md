@@ -5,6 +5,7 @@ file are in `dependency_outputs.md`; how to read the results is in `interpretati
 
 ## Contents
 
+- [Progress checklist](#progress-checklist)
 - [Conventions](#conventions): variables, recording a step, researcher decisions, helpers
 - [Step 1. Prerequisites and study](#step-1-prerequisites-and-study)
 - [Step 2. Structure and junctions](#step-2-structure-and-junctions)
@@ -21,6 +22,30 @@ file are in `dependency_outputs.md`; how to read the results is in `interpretati
 - [Step 13. Report and figures](#step-13-report-and-figures)
 - [Step 14. Dashboard](#step-14-dashboard)
 - [When a command fails](#when-a-command-fails)
+- [Study folder](#study-folder)
+- [Common mistakes](#common-mistakes)
+
+## Progress checklist
+
+Copy this checklist into the conversation and tick it as you go:
+
+```
+splicing-analysis progress:
+- [ ] Step 1: check passes (missing skills asked one at a time); study.yaml validated; manifest started
+- [ ] Step 2: raw/gtf.json and raw/gtf_junctions.json (GENCODE v46) recorded
+- [ ] Step 3: splicing.introns, splicing.isoforms (locus.transcript) decided by the researcher
+- [ ] Step 4: locus.json written; manual elements answered; regions (windows, tiles) printed
+- [ ] Step 5: ClinVar search, summaries (batches of 50), evidence, dbSNP and sequence recorded
+- [ ] Step 6: raw/gnomad_region_{i}.json, one per gnomAD tile (no PASS filter: noted)
+- [ ] Step 7: VEP fallback done; cohort built; class rules, rejected records (and threshold.no_cases if 0 cases) answered
+- [ ] Step 8: scores_saturation.tsv (SITES, USAGE by interval per window; JUNCTIONS per variant, merged) and scores_cohort.tsv
+- [ ] Step 9: model_scores_indels.tsv (if indels are included)
+- [ ] Step 10: composite run; every cohort variant scored or explained
+- [ ] Step 11: threshold run (or threshold.no_cases answered); counts read with AUROC/AUPRC
+- [ ] Step 12: prioritized list; interpretations and atlas_links.md recorded
+- [ ] Step 13: report.md read back (predicted impact only, no diagnosis); figures A-D
+- [ ] Step 14: dashboard opened or exported for the researcher
+```
 
 ## Conventions
 
@@ -622,3 +647,75 @@ export writes a file to record.
 | `h5py` build failure in the links or AVI script | Python 3.14 from the skill's pyproject | `--no-project --python 3.13 --with "$…_DEPS"` |
 | `HTTP 414` or an empty `[]` from `summary` | too many IDs in one call | batches of 50 (`inputs --list clinvar-batches`) |
 | `Reference 'plp1': … mismatch` (`reproduce`) | a code or data change moved a reference number | read the stage/metric table it prints before changing anything |
+
+## Study folder
+
+```
+<study_dir>/                         # chosen by the researcher, never inside the skill
+  study.yaml                         # the request (gene, introns, isoforms, manual elements, cohort, threshold, view)
+  decisions.yaml                     # the researcher's answers, with the options offered, timestamps and notes
+  manifest.json                      # provenance: every command, output, version and decision key
+  raw/                               # dependency outputs, unedited (gtf*.json, clinvar_*.json,
+                                     #   dbsnp_rsid_*.json, vep_clinvar_*.json, sequence_*.txt,
+                                     #   gnomad_region_{i}.json, avi_region.parquet, scores_saturation.tsv,
+                                     #   scores_cohort.tsv, model_scores_indels.tsv, interpret_*.txt,
+                                     #   atlas_links.md; raw/parts/ holds score chunks only until
+                                     #   merge-scores --delete-inputs merges them, plus the optional
+                                     #   per-window AVI files)
+  processed/                         # this skill's outputs: locus.json, inputs/ (loop input lists,
+                                     #   interpret_variants.txt), cohort.parquet,
+                                     #   rejected.tsv, cohort_scored.parquet, saturation_scored.parquet,
+                                     #   threshold.json, prioritized.tsv/.json, pending_decisions.json
+  figures/                           # A_categories.png, B_locus.png, C_roc.png, D_prioritized.png
+  .dashboard/                        # marimo's session cache of the dashboard (kept out of the skill)
+  report.md                          # Portuguese report: study, decisions, cohort and rejected, threshold,
+                                     #   prioritised variants, skills used, limits, citations
+```
+
+## Common mistakes
+
+- **Annotating exons or introns from Ensembl REST instead of `raw/gtf.json`.** The Atlas junction
+  scores use GENCODE v46 coordinates; Ensembl release 116 can differ. Ensembl is used only for
+  sequence, VEP and IDs.
+- **"Fixing" the GTF by hand.** Its starts are 0-based as written; every stage applies
+  `models.normalize_gtf` once, and junction coordinates are deliberately not shifted (they match
+  the Atlas `SPLICE_JUNCTIONS` rows). Editing `raw/` would shift everything twice.
+- **Scanning whole introns by default.** 3 SNVs per base and per-variant `SPLICE_JUNCTIONS` make
+  a long intron cost hours; keep the ±100 bp windows unless the researcher asks for a region
+  (`saturation_region`, e.g. a deep-intronic element) and has seen its size from `regions`.
+- **Omitting `--max_window_size` / `--max-window` for a window above 1000 bp.** Both scripts
+  refuse it by default; pass `study.py window --print-max-window` (the longest window).
+- **Querying gnomAD for the whole cohort region at once.** Above ~15 kb it fails with HTTP 500
+  "too many variants"; query each `regions --only gnomad_tiles` tile.
+- **`SPLICE_JUNCTIONS` by `--interval`.** It fails with `RESOURCE_EXHAUSTED`; query it per variant
+  and join the chunks with `merge-scores`.
+- **Mixing scores of different Atlas pulls.** Cohort and saturation must come from the same pull
+  and the same composite function: mixing runs or formulas can shift variant scores enough to move
+  τ.
+- **Presenting τ as a clinical threshold**, or carrying it to another gene or intron. It is the
+  Youden point of this study's cohort; with few cases it is imprecise. Report AUROC and AUPRC with
+  the numbers of cases and controls.
+- **Answering a clinical question with a verdict.** Say what is predicted (which site, which
+  scorer, how far above τ) and that it is not a classification or a diagnosis.
+- **Reading ClinVar `allele_info` positions as variant positions.** They are gene spans with no
+  alleles; coordinates come from dbSNP and VEP (`splicing.py cohort` does this).
+- **Calling ClinVar `summary` with every ID.** HTTP 414, or an empty list without error for
+  batches of 100-200; use `inputs --list clinvar-batches` (50 per call) and check each file's count.
+- **Claiming gnomAD controls are PASS-filtered.** The output has no filters; the report states it.
+- **Computing splice sites by hand on the − strand.** The donor is the intron's higher
+  coordinate there; `locus` and `regions` get it right.
+- **An unpinned `alphagenome` for `score_variants.py` or `interpret_splicing.py`.** 2.0.0 removed
+  `dna_client`; run them with `--with "alphagenome<2"`.
+- **Running the links skill through its `pyproject.toml`.** It asks for Python ≥ 3.14, where
+  `h5py` has no wheel; use `--no-project --python 3.13 --with "$LINKS_DEPS"` and a JSON input.
+- **`"$G[gene]"` in zsh.** zsh reads it as an array subscript; write `"${G}[gene]"`.
+- **Changing `composite.junction_weight` after step 11** without re-running composite,
+  threshold and prioritize: τ refers to one weight.
+- **Choosing for the researcher, or editing `decisions.yaml` by hand.** Use `study.py decide`.
+- **Installing a dependency, or writing a `.licenses/` file, without the researcher's explicit
+  approval for that skill.** Ask one skill at a time.
+- **Sourcing or printing a `.env`, or keeping the key in `~/.env`.** Use `uv run --env-file $ENV` with the
+  project's `.env`; keys never reach the screen, and each project runs with its own key.
+- **Editing only one copy of a shared file.** `study.py`, `manifest.py`, `models.py` and
+  `reference.py` are identical in both skills; change both, then run
+  `tools/validate_skills.py shared` in the development repository.

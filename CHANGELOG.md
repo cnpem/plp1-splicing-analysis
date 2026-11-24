@@ -8,6 +8,39 @@ or the format of study files. Each study records the version it ran with (`skill
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-23
+
+`SKILL.md` is now a short map (7.5 thousand characters, was 27.5 thousand) and the detail moved to
+`references/`, so the skill passes the package lint of the test plan (body ≤ 10,000 characters, sections
+*Output contract* and *Failure behavior*). No rule was dropped: every rule of the former body is in
+`SKILL.md` or in a reference. Scripts, questions and study files do not change, and the bundled PLP1 reference
+reproduces with the same values (AUROC 0.999053, Youden τ 2.653809, 11 hypothetical variants at or above τ,
+first c.454-6T>G).
+
+### Added
+
+- **`references/conversation.md`**: asking and recording (`--said`, delegation), the final answer, text from
+  outside, resuming and clinical questions.
+- **`references/commands.md`**: what the skill does, quick start, every command, what `check` tests, the
+  dependency skills and their installation, services and rate limits, citations.
+- **SKILL.md**: *Rules for every turn*, *Output contract* (files and checkable fields per step) and *Failure
+  behavior* (missing setup, no cases or controls, service errors, changed outputs, no answer).
+
+### Changed
+
+- **SKILL.md** keeps one line per Workflow step and a table of which reference to read when. The progress
+  checklist, the study folder layout and *Common Mistakes* moved to `references/workflow.md`, which already
+  held the full commands of every step.
+
+### Fixed
+
+- **SKILL.md** now states, among the rules for every turn, that `gtf.json` mixes conventions: `start` is 0-based
+  (first base = `start` + 1), `end` is 1-based, and junctions are the 0-based half-open intron (1-based intron =
+  `junction_start` + 1 … `junction_end`). The dependency's own docs say "1-based closed". It also says to use
+  `models.normalize_gtf` or apply these shifts, and to check that introns read GT…AG. Until now this was only in
+  `references/dependency_outputs.md`. The same error appeared in the pilot of the 22/11 test round, in
+  `expression-analysis`. Scripts and results do not change.
+
 ## [0.2.0] - 2026-11-18
 
 Brings the skill in line with `expression-analysis` 0.6.0 and with `alphagenome-skills-setup`. The numbers do not
@@ -46,6 +79,7 @@ change: the bundled PLP1 reference reproduces with the same values (AUROC 0.9990
 First version in this repository: ClinVar/gnomAD cohort, Atlas splice scores, ROC/Youden threshold,
 prioritisation, report, figures and dashboard, with the offline PLP1 reference.
 
-[Unreleased]: https://github.com/cnpem/plp1-splicing-analysis/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/cnpem/plp1-splicing-analysis/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/cnpem/plp1-splicing-analysis/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/cnpem/plp1-splicing-analysis/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cnpem/plp1-splicing-analysis/releases/tag/v0.1.0
